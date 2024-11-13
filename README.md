@@ -6,7 +6,7 @@
 
 ## Installation
 
-`cochl-sense-py` can be installed and used in Python 3.8+.
+`cochl-sense-py` can be installed and used in Python 3.9+.
 
 ```python
 pip install --upgrade cochl
