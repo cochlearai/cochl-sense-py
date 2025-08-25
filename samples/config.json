@@ -1,0 +1,15 @@
+{
+  "sensitivity_control": {
+    "default_sensitivity": 0,
+    "tag_sensitivity": {
+    }
+  },
+  "result_summary": {
+    "default_interval_margin": 0,
+    "tag_interval_margin": {
+    }
+  },
+  "tag_filter": {
+    "enabled_tags": []
+  }
+}

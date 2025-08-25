@@ -1,75 +1,67 @@
-# cochl-sense-py
+# cochl
 
-`cochl-sense-py` is a Python client library providing easy integration of Cochl.Sense API into any Python application. You can upload a file (MP3, WAV, OGG) or raw PCM audio stream. 
-
+`cochl` is a Python client library providing easy integration of Cochl.Sense API into any Python application. You can upload a file (MP3, WAV, OGG) or raw PCM audio stream.
 <br/>
 
 ## Installation
-
-`cochl-sense-py` can be installed and used in Python 3.9+.
-
-```python
+`cochl` can be installed and used in Python 3.9+.
+```commandline
 pip install --upgrade cochl
 ```
-
 <br/>
 
 ## Usage
-
 This simple setup is enough to input your file. API project key can be retrieved from [Cochl Dashboard](https://dashboard.cochl.ai/).
-
 ```python
 import cochl.sense as sense
+from cochl.sense import Result
 
-client = sense.Client("YOUR_API_PROJECT_KEY")
-
-results = client.predict("your_file.wav")
-print(results.to_dict())  # get results as a dict
-```
-
-<br/>
-
-You can adjust the custom settings like below. For more details please refer to [Advanced Cconfigurations](#advanced-configurations).
-```python
-import cochl.sense as sense
-
-api_config = sense.APIConfig(
-    sensitivity=sense.SensitivityConfig(
-        default=sense.SensitivityScale.LOW,
-        by_tags={
-            "Baby_cry": sense.SensitivityScale.VERY_LOW,
-            "Gunshot":  sense.SensitivityScale.HIGH,
-        },
-    ),
-)
-
+api_config = sense.APIConfigFromJson('./config.json')
 client = sense.Client(
-    "YOUR_API_PROJECT_KEY",
+    'YOUR_API_PROJECT_KEY',
     api_config=api_config,
 )
+result: Result = client.predict('your_file.wav')
 
-results = client.predict("your_file.wav")
-print(results.to_dict())  # get results as a dict
+print(result.events.to_dict(api_config))  # Return the event result as a dictionary.
+# print(result.events_summarized(api_config))  # Return the event result in a simplified form.
 ```
-
 <br/>
 
-The file prediction result can be displayed in a summarized format. More details at [Summarized Result](#summarzied-result).
-```python
-# print(results.to_dict())  # get results as a dict
+You can adjust the custom settings like below. For more details please refer to **Advanced configurations**.
+- config.json
+```json
+{
+  "sensitivity_control": {
+    "default_sensitivity": 0,
+    "tag_sensitivity": {
+    }
+  },
+  "result_summary": {
+    "default_interval_margin": 0,
+    "tag_interval_margin": {
+    }
+  },
+  "tag_filter": {
+    "enabled_tags": []
+  }
+}
+```
+<br/>
 
-print(results.to_summarized_result(
-    interval_margin=2,
-    by_tags={"Baby_cry": 5, "Gunshot": 3}
-))  # get results in a simplified format
+The file prediction result can be displayed in a summarized format. More details at **Result Summary**.
+```python
+# print(result.events.to_dict(api_config))  # get results as a dict
+
+
+print(result.events_summarized(api_config))  # Return the event result in a simplified form.
 
 # At 0.0-1.0s, [Baby_cry] was detected
 ```
-
 <br/>
 
 Cochl.Sense API supports three file formats: MP3, WAV, OGG. \
-If a file is not in a supported format, it has to be manually converted. More details [here](#convert-to-supported-file-formats-wav-mp3-ogg).
+If a file is not in a supported format, it has to be manually converted. More details at **Convert to supported file formats**.
 
 
 <br/>
@@ -78,36 +70,37 @@ If a file is not in a supported format, it has to be manually converted. More de
 
 ### Sensitivity
 
-Detection sensitivity can be adjusted for all tags or each tag individually. \
-If you feel that tags are not detected well enough, increase sensitivities. If there are too many false detections, lower sensitivities.
+Sensitivity Control allows users to adjust the sensitivity so that it can be customized depending on target sounds and user scenarios. Sensitivity is adjustable on a scale from -2 (Very Low) to 2 (Very High). Default is 0 (Normal). Sensitivity can be set globally or individually per tag.
 
-The sensitivity is adjusted with `SensitivityScale` Enum.
-  - `VERY_HIGH`
-  - `HIGH`
-  - `MEDIUM` (default)
-  - `LOW`
-  - `VERY_LOW`
+- If certain tags are not being detected frequently, try increasing the sensitivity.
+- If you experience too many false-detections, lowering the sensitivity may help.
 
-```python
-import cochl.sense as sense
-
-api_config = sense.APIConfig(
-    sensitivity=sense.SensitivityConfig(
-        # default sensitivity applied to all tags not specified in `by_tags`
-        default=sense.SensitivityScale.LOW,
-        by_tags={
-            "Baby_cry": sense.SensitivityScale.VERY_LOW,
-            "Gunshot":  sense.SensitivityScale.HIGH,
-        },
-    ),
-)
-client = sense.Client(
-    "YOUR_API_PROJECT_KEY",
-    api_config=api_config,
-)
+```json
+  "sensitivity_control": {
+    "default_sensitivity": -1,
+    "tag_sensitivity": {
+      "Baby_cry": -2,
+      "Gunshot": 1
+    }
+  }
 ```
 
 <br/>
+
+### Result Summary
+Result Summary summarizes the prediction results by merging consecutive detection windows and returns the start time and duration of each detected sound tag.
+
+The interval_margin parameter defines how much undetected duration between adjacent tags should still be considered part of a single event. This margin is applied globally to all tags by default, but it can also be overridden per tag to fine-tune behavior individually.
+
+```python
+  "result_summary": {
+    "default_interval_margin": 2,
+    "tag_interval_margin": {
+      "Baby_cry": 5,
+      "Gunshot": 3
+    }
+  }
+```
 <br/>
 
 ## Other notes
@@ -130,22 +123,6 @@ For more details of `Pydub`, please refer to this [link](https://github.com/jiaa
 
 <br/>
 
-### Summarzied Result
-You can summarize the file prediction result by aggregating consecutive windows, returning the time and length of the detected tag. \
-The 'interval margin' is a parameter that treats the unrecognized window between tags as part of the recognized ones and it affects all sound tags.
-If you want to specify a different interval margin for specific sound tags, you can use the 'by_tags' option.
-
-```python
-print(results.to_summarized_result(
-    interval_margin=2,
-    by_tags={"Baby_cry": 5, "Gunshot": 3}
-))
-
-# At 0.0-1.0s, [Baby_cry] was detected
-```
-
-<br/>
-
 ### Links
 
-Documentation: https://docs.cochl.ai/sense/api/
+Documentation: https://docs.cochl.ai/sense/cochl.sense-cloud-api/gettingstarted/
