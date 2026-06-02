@@ -24,8 +24,6 @@ Two consumption patterns are shown below:
 Project key: Cochl.Sense Dashboard → your project → Settings tab.
 Docs: https://docs.cochl.ai/sense/cochl.sense-cloud-api/speechanalysis/
 """
-from urllib.request import Request, urlopen
-
 from cochl.sense import IntegratedApi, IntegratedApiOptions
 
 
