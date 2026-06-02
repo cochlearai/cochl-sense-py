@@ -1,128 +1,147 @@
 # cochl
 
-`cochl` is a Python client library providing easy integration of Cochl.Sense API into any Python application. You can upload a file (MP3, WAV, OGG) or raw PCM audio stream.
-<br/>
+`cochl` is the official Python client library for the **Cochl.Sense Cloud API**. Use it to detect sound events, transcribe and identify speakers, and summarize what's happening in an audio file, all from Python.
+
+For end-user product documentation see [docs.cochl.ai](https://docs.cochl.ai/sense/cochl.sense-cloud-api/gettingstarted/).
 
 ## Installation
-`cochl` can be installed and used in Python 3.9+.
-```commandline
+
+Supported on **Python 3.10+**.
+
+```bash
 pip install --upgrade cochl
 ```
-<br/>
 
-## Usage
-This simple setup is enough to input your file. API project key can be retrieved from [Cochl Dashboard](https://dashboard.cochl.ai/).
+## What's in the library
+
+The library exposes three API classes; pick the one that matches your task.
+
+| Class | Use for | Auth key |
+|---|---|---|
+| `IntegratedApi` | All-in-one analysis: Sound Event Detection + Speech Analysis + Audio Insights in one request. Recommended for new integrations. | Project key (`X-Api-Key`) |
+| `Client` *(also exported as `EventDetectionApi`)* | Legacy single-feature client — Sound Event Detection only, with `tags[]` / `probability` shape. Kept for v1.x compatibility. | Project key (`X-Api-Key`) |
+| `SpeakerProfileApi` | Register / list / recognize / delete voice profiles used by Speech Analysis. | Organization key (`X-Org-Key`) |
+
+**Project keys** are per-project (Dashboard → Projects → *your project* → **Settings**). **Organization keys** apply across the whole organization (Dashboard → **Organization**).
+
+Project keys do not expire — rotate them by regenerating from the project's **Settings** tab.
+
+## Samples
+
+Working scripts for each API class live under `samples/`. Replace the placeholder key and audio file path, then run with `python samples/<file>.py`.
+
+```
+samples/
+├── sample_audio_insights.py        # IntegratedApi — audio_insights=True
+├── sample_sound_event_detection.py # IntegratedApi — sound_event_detection=True
+├── sample_speech_analysis.py       # IntegratedApi — speech_analysis=True
+├── sample_speaker_profile_api.py   # SpeakerProfileApi — register / list / recognize / delete
+└── legacy/
+    ├── sample.py                   # Legacy Client (v1.x response shape)
+    └── config.json                 # Sensitivity / result_summary / tag_filter knobs for Client
+```
+
+## Quick start — `IntegratedApi`
+
 ```python
-import cochl.sense as sense
-from cochl.sense import Result
+from cochl.sense import IntegratedApi, IntegratedApiOptions
 
-api_config = sense.APIConfigFromJson('./config.json')
-client = sense.Client(
-    'YOUR_API_PROJECT_KEY',
-    api_config=api_config,
+api = IntegratedApi('YOUR_API_PROJECT_KEY')
+
+job = api.analyze_file(
+    'your_file.wav',
+    IntegratedApiOptions(
+        sound_event_detection=True,
+        speech_analysis=True,
+        audio_insights=True,
+    ),
 )
-result: Result = client.predict('your_file.wav')
 
-print(result.events.to_dict(api_config))  # Return the event result as a dictionary.
-# print(result.events_summarized(api_config))  # Return the event result in a simplified form.
-```
-<br/>
-
-You can adjust the custom settings like below. For more details please refer to **Advanced configurations**.
-- config.json
-```json
-{
-  "sensitivity_control": {
-    "default_sensitivity": 0,
-    "tag_sensitivity": {
-    }
-  },
-  "result_summary": {
-    "default_interval_margin": 0,
-    "tag_interval_margin": {
-    }
-  },
-  "tag_filter": {
-    "enabled_tags": []
-  }
-}
-```
-<br/>
-
-The file prediction result can be displayed in a summarized format. More details at **Result Summary**.
-```python
-# print(result.events.to_dict(api_config))  # get results as a dict
-
-
-print(result.events_summarized(api_config))  # Return the event result in a simplified form.
-
-# At 0.0-1.0s, [Baby_cry] was detected
-```
-<br/>
-
-Cochl.Sense API supports three file formats: MP3, WAV, OGG. \
-If a file is not in a supported format, it has to be manually converted. More details at **Convert to supported file formats**.
-
-
-<br/>
-
-## Advanced Configurations
-
-### Sensitivity
-
-Sensitivity Control allows users to adjust the sensitivity so that it can be customized depending on target sounds and user scenarios. Sensitivity is adjustable on a scale from -2 (Very Low) to 2 (Very High). Default is 0 (Normal). Sensitivity can be set globally or individually per tag.
-
-- If certain tags are not being detected frequently, try increasing the sensitivity.
-- If you experience too many false-detections, lowering the sensitivity may help.
-
-```json
-  "sensitivity_control": {
-    "default_sensitivity": -1,
-    "tag_sensitivity": {
-      "Baby_cry": -2,
-      "Gunshot": 1
-    }
-  }
+# Block until the job finishes, then return the final result dict.
+result = api.get_completed_result(job['job_id'])
+print(result)
 ```
 
-<br/>
+`result` is a dict with up to four top-level keys (one per enabled analysis):
 
-### Result Summary
-Result Summary summarizes the prediction results by merging consecutive detection windows and returns the start time and duration of each detected sound tag.
+- `sense.results[]` — Sound Event Detection chunks (~1 s windows) with `classes[]` (each `{class, confidence}`) and time fields.
+- `speech_analysis.results[]` — speaker-turn segments with `speaker`, `speaker_name` (when matched against a registered Speaker Profile), `transcript`, and time fields.
+- `audio_insights.result` — single object with `contains_speech`, `detected_language`, `primary_sound_environment`, `situation_summary`, `notable_events[]`, `speech_content_summary`, `keywords[]`.
+- `usage` — `audio_duration_sec`, `services_used[]`, `processing_time_ms`.
 
-The interval_margin parameter defines how much undetected duration between adjacent tags should still be considered part of a single event. This margin is applied globally to all tags by default, but it can also be overridden per tag to fine-tune behavior individually.
+A single upload is capped at 1 hour of audio.
+
+For schema details and per-feature documentation, see:
+- [Audio Insights](https://docs.cochl.ai/sense/cochl.sense-cloud-api/audioinsights/)
+- [Speech Analysis](https://docs.cochl.ai/sense/cochl.sense-cloud-api/speechanalysis/)
+- [Sound Event Detection](https://docs.cochl.ai/sense/cochl.sense-cloud-api/soundeventdetection/)
+
+`IntegratedApi` accepts **MP3, WAV, FLAC, OGG**. Convert other formats first — see [Convert to supported file formats](#convert-to-supported-file-formats) below.
+
+### Valid service combinations
+
+`audio_insights` is a summary built on top of the other two analyses, so it can't run on its own — enable it only together with both `sound_event_detection` and `speech_analysis`. At least one service must be enabled. Invalid combinations come back as `400`.
+
+| `sound_event_detection` | `speech_analysis` | `audio_insights` | Result |
+|:---:|:---:|:---:|:---|
+| ✅ | ❌ | ❌ | OK — SED only |
+| ❌ | ✅ | ❌ | OK — Speech Analysis only |
+| ✅ | ✅ | ❌ | OK — SED + Speech Analysis |
+| ✅ | ✅ | ✅ | OK — full stack (Dashboard default) |
+| ❌ | ❌ | ❌ | `400` — no services selected |
+| ❌ | ❌ | ✅ | `400` — `audio_insights` requires both SED and Speech Analysis |
+| ✅ | ❌ | ✅ | `400` — `audio_insights` requires `speech_analysis` |
+| ❌ | ✅ | ✅ | `400` — `audio_insights` requires `sound_event_detection` |
+
+## Speaker Profiles
+
+Register voices ahead of time so `IntegratedApi`'s Speech Analysis can name them (instead of generic `SPEAKER_00` / `SPEAKER_01`).
 
 ```python
-  "result_summary": {
-    "default_interval_margin": 2,
-    "tag_interval_margin": {
-      "Baby_cry": 5,
-      "Gunshot": 3
-    }
-  }
+from cochl.sense import SpeakerProfileApi
+
+api = SpeakerProfileApi('YOUR_ORGANIZATION_KEY')
+
+# Register a profile from an audio sample.
+api.add_new_voice('Anna_Kim', 'anna_sample.wav')
+
+# List every profile registered under this organization.
+print(api.list_all_speakers())
+
+# Match speakers in a separate file (uses the registered profiles).
+print(api.recognize('meeting.wav'))
+
+# Delete a profile.
+api.remove('Anna_Kim')
 ```
-<br/>
+
+Notes:
+- Each `add_new_voice` / `recognize` upload is capped at **10 MB** per file.
+- `SpeakerProfileApi` uses the **organization key** (`X-Org-Key`), not a project key.
+
+See [Custom Sound: Speaker Profile](https://docs.cochl.ai/sense/cochl.sense-cloud-api/speechanalysis/customspeakerprofile/) for the full registration flow.
 
 ## Other notes
 
-### Convert to supported file formats (WAV, MP3, OGG)
+### Convert to supported file formats
 
-`Pydub` is one of the easy ways to convert audio file into a supported format (WAV, MP3, OGG).
-
-First install Pydub refering to this [link](https://github.com/jiaaro/pydub?tab=readme-ov-file#installation). \
-Then write a Python script converting your file into a supported format like below.
+`Pydub` is one easy way to convert audio into a supported format. Install it per the [Pydub installation guide](https://github.com/jiaaro/pydub?tab=readme-ov-file#installation), then:
 
 ```python
 from pydub import AudioSegment
 
-mp4_version = AudioSegment.from_file("sample.mp4", "mp4")
-mp4_version.export("sample.mp3", format="mp3")
+audio = AudioSegment.from_file('sample.mp4', 'mp4')
+audio.export('sample.mp3', format='mp3')
 ```
 
-For more details of `Pydub`, please refer to this [link](https://github.com/jiaaro/pydub).
+For more on Pydub, see the [Pydub repo](https://github.com/jiaaro/pydub).
 
-<br/>
+### Repo layout
+
+This package is published to PyPI from a private development repository (`cochl-sense-py-private`) and mirrored to the public [`cochlearai/cochl-sense-py`](https://github.com/cochlearai/cochl-sense-py) repo for end-user access. Issues and pull requests should be filed against the public mirror.
 
 ### Links
 
-Documentation: https://docs.cochl.ai/sense/cochl.sense-cloud-api/gettingstarted/
+- Product documentation: [docs.cochl.ai](https://docs.cochl.ai)
+- Public source mirror: [github.com/cochlearai/cochl-sense-py](https://github.com/cochlearai/cochl-sense-py)
+- Issues: [github.com/cochlearai/cochl-sense-py/issues](https://github.com/cochlearai/cochl-sense-py/issues)
