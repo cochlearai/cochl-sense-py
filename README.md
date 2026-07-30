@@ -62,12 +62,23 @@ result = api.get_completed_result(job['job_id'])
 print(result)
 ```
 
-`result` is a dict with up to four top-level keys (one per enabled analysis):
+`result` is a dict with one top-level key per enabled analysis, plus `metadata`:
 
-- `sense.results[]` — Sound Event Detection chunks (~1 s windows) with `classes[]` (each `{class, confidence}`) and time fields.
-- `speech_analysis.results[]` — speaker-turn segments with `speaker`, `speaker_name` (when matched against a registered Speaker Profile), `transcript`, and time fields.
-- `audio_insights.result` — single object with `contains_speech`, `detected_language`, `primary_sound_environment`, `situation_summary`, `notable_events[]`, `speech_content_summary`, `keywords[]`.
-- `usage` — `audio_duration_sec`, `services_used[]`, `processing_time_ms`.
+- `sound_event_detection` — `status`, and `results[]` on success. Each entry is a 2 s window advancing in 1 s steps (`00:00–00:02`, `00:01–00:03`, …) carrying `classes[]` (each `{class, confidence, id}`), `start_time` / `end_time` (`MM:SS.ss`), `start_time_sec` / `end_time_sec`, and an `id`.
+- `speech_analysis` — `status`, and `results[]` on success: speaker-turn segments with `transcript`, `speaker` (the diarization label, `SPEAKER_00`, `SPEAKER_01`, …), `speaker_name`, `speaker_score`, `start_time` / `end_time`, `start_time_sec` / `end_time_sec`, and `item_ids`. `speaker_name` is always present: it holds the registered Speaker Profile's name when one matches, and `Unknown 0`, `Unknown 1`, … otherwise, in which case `speaker_score` is `-1.0`.
+- `audio_insights` — `status`, plus `result` (a single object with `contains_speech`, `detected_language`, `primary_sound_environment`, `situation_summary`, `notable_events[]`, `speech_content_summary`, `keywords[]`) and `item_ids` mapping each of those fields to an item id.
+- `metadata` — `audio.input` (`filename`, `format`, `size_bytes`, `content_type`), `audio.processed` (`sample_rate_hz`, `channels`, `encoding`, `resampled`, `downmixed`), and `warnings[]`.
+
+**Check `status` per service.** A service that fails does not raise — the job still completes with HTTP `200`, and the failure shows up as `status: 'error'` with an `error` message on that service alone:
+
+```python
+sed = result['sound_event_detection']
+if sed['status'] != 'success':
+    print('SED failed:', sed['error'])
+else:
+    for chunk in sed['results']:
+        print(chunk['start_time'], [c['class'] for c in chunk['classes']])
+```
 
 A single upload is capped at 1 hour of audio.
 
