@@ -20,6 +20,7 @@ Two consumption patterns are shown below:
 Project key: Cochl.Sense Dashboard → your project → Settings tab.
 Docs: https://docs.cochl.ai/sense/cochl.sense-cloud-api/soundeventdetection/
 """
+
 from cochl.sense import IntegratedApi, IntegratedApiOptions
 
 
@@ -49,7 +50,7 @@ def main():
     job_id: str = job['job_id']
 
     # 4. Block until the job finishes and return the final result dict.
-    #    SED chunks live under result['sense']['results'].
+    #    SED chunks live under result['sound_event_detection']['results'].
     result: dict = api.get_completed_result(job_id)
     print(result)
 
