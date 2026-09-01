@@ -14,12 +14,11 @@ pip install --upgrade cochl
 
 ## What's in the library
 
-The library exposes three API classes; pick the one that matches your task.
+The library exposes two API classes; pick the one that matches your task.
 
 | Class | Use for | Auth key |
 |---|---|---|
-| `IntegratedApi` | All-in-one analysis: Sound Event Detection + Speech Analysis + Audio Insights in one request. Recommended for new integrations. | Project key (`X-Api-Key`) |
-| `Client` *(also exported as `EventDetectionApi`)* | Legacy single-feature client — Sound Event Detection only, with `tags[]` / `probability` shape. Kept for v1.x compatibility. | Project key (`X-Api-Key`) |
+| `IntegratedApi` | All-in-one analysis: Sound Event Detection + Speech Analysis + Audio Insights in one request. Enable only the services you need. | Project key (`X-Api-Key`) |
 | `SpeakerProfileApi` | Register / list / recognize / delete voice profiles used by Speech Analysis. | Organization key (`X-Org-Key`) |
 
 **Project keys** are per-project (Dashboard → Projects → *your project* → **Settings**). **Organization keys** apply across the whole organization (Dashboard → **Organization**).

@@ -5,9 +5,6 @@ Sound Event Detection — recognize what sounds are present in an audio file.
 chunks (~1 s each). Each chunk carries a list of candidate sound classes
 with confidence scores.
 
-For the v1.x legacy client shape (`tags[]` / `probability`), see
-`legacy/sample.py`.
-
 Two consumption patterns are shown below:
 
   1. `get_completed_result(job_id)` — blocking call that returns the
