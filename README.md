@@ -36,9 +36,6 @@ samples/
 ├── sample_sound_event_detection.py # IntegratedApi — sound_event_detection=True
 ├── sample_speech_analysis.py       # IntegratedApi — speech_analysis=True
 ├── sample_speaker_profile_api.py   # SpeakerProfileApi — register / list / recognize / delete
-└── legacy/
-    ├── sample.py                   # Legacy Client (v1.x response shape)
-    └── config.json                 # Sensitivity / result_summary / tag_filter knobs for Client
 ```
 
 ## Quick start — `IntegratedApi`
