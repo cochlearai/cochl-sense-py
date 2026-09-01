@@ -34,7 +34,7 @@ samples/
 ├── sample_audio_insights.py        # IntegratedApi — audio_insights=True
 ├── sample_sound_event_detection.py # IntegratedApi — sound_event_detection=True
 ├── sample_speech_analysis.py       # IntegratedApi — speech_analysis=True
-├── sample_speaker_profile_api.py   # SpeakerProfileApi — register / list / recognize / delete
+└── sample_speaker_profile_api.py   # SpeakerProfileApi — register / list / recognize / delete
 ```
 
 ## Quick start — `IntegratedApi`
